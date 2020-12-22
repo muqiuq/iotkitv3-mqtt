@@ -1,9 +1,9 @@
 ## MQTT (Message Queue Telemetry Transport)
 ***
 
-> [⇧ **Home**](../README.md)
+> [⇧ **Home**](https://github.com/iotkitv4/intro)
 
-![](../images/MQTTPubSub.png)
+![](https://raw.githubusercontent.com/iotkitv4/intro/main/images/MQTTPubSub.png)
 
 Quelle: Publish/Subscribe-Architektur von MQTT. © HiveMQ.com
 - - -
@@ -48,14 +48,14 @@ Mittels der Client Utilities von [Mosquitto](https://projects.eclipse.org/projec
 
 Beispiel: Abfragen der Werte von Temperatur und Luftfeuchtigkeit (Ausgabe: I2C Id, Temperatur, Luftfeuchtigkeit, Motorlaufgeschwindigkeit)
 
-    mosquitto_sub -h broker.hivemq.com -t iotkit/sensor/#
+    mosquitto_sub -h cloud.tbz.ch -t iotkit/sensor/#
     0xBC,22.90,36.9,low
     0xBC,28.00,36.7,middle
     0xBC,32.90,36.7,high
 
 Beispiel: Abfragen ob jemand einen Magneten an den Hall Sensor gehalten hat
     
-    mosquitto_sub -h broker.hivemq.com -t iotkit/alert/#
+    mosquitto_sub -h cloud.tbz.ch -t iotkit/alert/#
 
 Sollte der Server nicht Antworten ist der MQTT Broker zu wechseln (Eintrag `hostname` in `MQTTPublish/src/main.cpp`). 
 
@@ -63,25 +63,13 @@ Eine Liste von Öffentlichen MQTT gibt es [hier](https://github.com/mqtt/mqtt.gi
 
 ### Beispiel(e)
 
-Das Beispiel [MQTTPublish](MQTTPublish/src/main.cpp) sendet Sensordaten an einen MQTT Broker.
-
-Ein weiteres Beispiel ist [MQTT on os.mbed.org](https://os.mbed.com/teams/mqtt/code/HelloMQTT/).
-
-**Compilieren**
-
-| Umgebung/Board    | Link/Befehl                      |
-| ----------------- | -------------------------------- |
-| Online Compiler | [MQTTPublish](https://os.mbed.com/compiler/#import:/teams/IoTKitV3/code/MQTTPublish/) |
-| CLI (IoTKit K64F) | `mbed compile -m K64F --source . --source ../IoTKitV3/mqtt/MQTTPublish; ` <br> `cp BUILD/K64F/GCC_ARM/template.bin $DAPLINK` |
-| CLI (DISCO_L475VG_IOT01A) | `mbed compile -m DISCO_L475VG_IOT01A -f --source . --source ../IoTKitV3/mqtt/MQTTPublish` |
-| CLI (nucleo_f303re) | `mbed compile -m nucleo_f303re -f --source . --source ../IoTKitV3/mqtt/MQTTPublish` |
-
+Das Beispiel [MQTTPublish](main.cpp) sendet Sensordaten an einen MQTT Broker.
 
 ### Links 
 
 *   [Ausführlicher Artikel auf heise.de](http://www.heise.de/developer/artikel/MQTT-Protokoll-fuer-das-Internet-der-Dinge-2168152.html)
+*   [Offizelle MQTT Library von mbed](https://github.com/ARMmbed/mbed-mqtt)
 *   [MQTT Client Library Encyclopedia - Paho Embedded](https://www.hivemq.com/blog/mqtt-client-library-encyclopedia-paho-embedded/) - gute Einführung in mbed Library
-*   [MQTT Team auf mbed.org](https://os.mbed.com/teams/mqtt/)
 *   [MQTT JavaScript Client Library für node.js und Browser](https://github.com/mqttjs/MQTT.js)
 *   [Eclipse Paho, Client Libraries für Verschiedene Sprachen](http://www.eclipse.org/paho/)
 *   [Practical MQTT with Paho](http://www.infoq.com/articles/practical-mqtt-with-paho)
