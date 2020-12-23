@@ -63,9 +63,11 @@ Eine Liste von Öffentlichen MQTT gibt es [hier](https://github.com/mqtt/mqtt.gi
 
 ### Beispiel(e)
 
+#### MQTTPublish
+
 Das Beispiel [MQTTPublish](main.cpp) sendet Sensordaten an einen MQTT Broker.
 
-### Links 
+**Links** 
 
 *   [Ausführlicher Artikel auf heise.de](http://www.heise.de/developer/artikel/MQTT-Protokoll-fuer-das-Internet-der-Dinge-2168152.html)
 *   [Offizelle MQTT Library von mbed](https://github.com/ARMmbed/mbed-mqtt)
@@ -75,4 +77,28 @@ Das Beispiel [MQTTPublish](main.cpp) sendet Sensordaten an einen MQTT Broker.
 *   [Practical MQTT with Paho](http://www.infoq.com/articles/practical-mqtt-with-paho)
 *   [Paho UI Utilities für MQTT](https://wiki.eclipse.org/Paho/GUI_Utility)
 *   [MQTT Toolbox - MQTT Client Chrome App](https://www.hivemq.com/blog/mqtt-toolbox-mqtt-client-chrome-app/) - einfacher MQTT Client um Meldungen zu abonnieren (subsribe).
+
+#### Node-RED MQTT Workflow
+
+![](https://raw.githubusercontent.com/iotkitv4/intro/main/images/NodeREDMQTT.png)
+
+- - -
+
+* Benötigte Software installieren (z.B. auf einem Raspberry Pi oder einer Linux VM)
+    * [Mosquitto](https://mosquitto.org/) - MQTT Broker.
+    * [Node-RED](https://nodered.org/) - Workflow Engine.
+    * [ngrok](https://ngrok.com/) für eine Public URL. Wenn z.B. der Raspberry Pi hinter einer Firewall ist.
+* In Node-RED
+    * `mqtt` Input Node auf Flow 1 platzieren, mit Mosquitto Server verbinden, als Topic `iotkit/#` und bei Output `a String` eintragen.
+    * `debug` Output Node auf Flow 1 platzieren und mit Input Node verbinden.
+    * Programm mittels `Deploy` veröffentlichen.
+* mbed Teil
+    * [MQTTPublish](#mqtt-publish) Beispiel in mbed Compiler importieren und ca. auf Zeile 21 den `hostname` mit der IP-Adresse auswechseln wo der Mosquitto Server läuft. 
+    * Programm Compilieren und auf Board laden.
+
+**Links**
+ 
+ * [Home Page](https://nodered.org/)
+ * [Node-RED Einführung](https://www.youtube.com/watch?v=f5o4tIz2Zzc)
+
 
