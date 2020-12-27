@@ -1,9 +1,12 @@
 /** MQTT Publish von Sensordaten */
 #include "mbed.h"
-#include "HTS221Sensor.h"
 #include "OLEDDisplay.h"
 #include "Motor.h"
-#if defined(TARGET_NUCLEO_F303RE) || defined (TARGET_NUCLEO_F746ZG)
+
+#if MBED_CONF_IOTKIT_HTS221_SENSOR == true
+#include "HTS221Sensor.h"
+#endif
+#if MBED_CONF_IOTKIT_BMP180_SENSOR == true
 #include "BMP180Wrapper.h"
 #endif
 
@@ -14,10 +17,11 @@
 
 // Sensoren wo Daten fuer Topics produzieren
 static DevI2C devI2c( MBED_CONF_IOTKIT_I2C_SDA, MBED_CONF_IOTKIT_I2C_SCL );
-#if defined(TARGET_NUCLEO_F303RE) || defined (TARGET_NUCLEO_F746ZG)
-static BMP180Wrapper hum_temp( &devI2c );
-#else
+#if MBED_CONF_IOTKIT_HTS221_SENSOR == true
 static HTS221Sensor hum_temp(&devI2c);
+#endif
+#if MBED_CONF_IOTKIT_BMP180_SENSOR == true
+static BMP180Wrapper hum_temp( &devI2c );
 #endif
 AnalogIn hallSensor( MBED_CONF_IOTKIT_HALL_SENSOR );
 DigitalIn button( MBED_CONF_IOTKIT_BUTTON1 );
