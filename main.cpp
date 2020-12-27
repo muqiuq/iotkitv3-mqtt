@@ -3,7 +3,7 @@
 #include "HTS221Sensor.h"
 #include "OLEDDisplay.h"
 #include "Motor.h"
-#ifdef TARGET_NUCLEO_F303RE
+#if defined(TARGET_NUCLEO_F303RE) || defined (TARGET_NUCLEO_F746ZG)
 #include "BMP180Wrapper.h"
 #endif
 
@@ -14,7 +14,7 @@
 
 // Sensoren wo Daten fuer Topics produzieren
 static DevI2C devI2c( MBED_CONF_IOTKIT_I2C_SDA, MBED_CONF_IOTKIT_I2C_SCL );
-#ifdef TARGET_NUCLEO_F303RE
+#if defined(TARGET_NUCLEO_F303RE) || defined (TARGET_NUCLEO_F746ZG)
 static BMP180Wrapper hum_temp( &devI2c );
 #else
 static HTS221Sensor hum_temp(&devI2c);
