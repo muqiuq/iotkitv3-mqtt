@@ -2,6 +2,7 @@
 #include "mbed.h"
 #include "OLEDDisplay.h"
 #include "Motor.h"
+#include "Servo.h"
 
 #if MBED_CONF_IOTKIT_HTS221_SENSOR == true
 #include "HTS221Sensor.h"
@@ -12,10 +13,7 @@
 
 #ifdef TARGET_K64F
 #include "QEI.h"
-#include "MFRC522.h"
 
-// NFC/RFID Reader (SPI)
-MFRC522    rfidReader( MBED_CONF_IOTKIT_RFID_MOSI, MBED_CONF_IOTKIT_RFID_MISO, MBED_CONF_IOTKIT_RFID_SCLK, MBED_CONF_IOTKIT_RFID_SS, MBED_CONF_IOTKIT_RFID_RST ); 
 //Use X2 encoding by default.
 QEI wheel (MBED_CONF_IOTKIT_BUTTON2, MBED_CONF_IOTKIT_BUTTON3, NC, 624);
 #endif
@@ -36,12 +34,13 @@ static BMP180Wrapper hum_temp( &devI2c );
 AnalogIn hallSensor( MBED_CONF_IOTKIT_HALL_SENSOR );
 DigitalIn button( MBED_CONF_IOTKIT_BUTTON1 );
 
-// Topic's
+// Topic's publish
 char* topicTEMP = (char*) "iotkit/sensor";
 char* topicALERT = (char*) "iotkit/alert";
 char* topicBUTTON = (char*) "iotkit/button";
 char* topicENCODER = (char*) "iotkit/encoder";
-char* topicRFID = (char*) "iotkit/rfid";
+// Topic's subscribe
+char* topicActors = (char*) "actors/iotkit/get/#";
 // MQTT Brocker
 char* hostname = (char*) "cloud.tbz.ch";
 int port = 1883;
@@ -56,33 +55,18 @@ int type = 0;
 
 // UI
 OLEDDisplay oled( MBED_CONF_IOTKIT_OLED_RST, MBED_CONF_IOTKIT_OLED_SDA, MBED_CONF_IOTKIT_OLED_SCL );
-DigitalOut led1( MBED_CONF_IOTKIT_LED1 );
 DigitalOut alert( MBED_CONF_IOTKIT_LED3 );
 
 // Aktore(n)
 Motor m1( MBED_CONF_IOTKIT_MOTOR2_PWM, MBED_CONF_IOTKIT_MOTOR2_FWD, MBED_CONF_IOTKIT_MOTOR2_REV ); // PWM, Vorwaerts, Rueckwarts
 PwmOut speaker( MBED_CONF_IOTKIT_BUZZER );
+// Servo2 (Pin mit PWM)
+Servo servo2 ( MBED_CONF_IOTKIT_SERVO2 );
 
 /** Hilfsfunktion zum Publizieren auf MQTT Broker */
 void publish( MQTTNetwork &mqttNetwork, MQTT::Client<MQTTNetwork, Countdown> &client, char* topic )
 {
-    led1 = 1;
-    printf("Connecting to %s:%d\r\n", hostname, port);
-    
-    int rc = mqttNetwork.connect(hostname, port);
-    if (rc != 0)
-        printf("rc from TCP connect is %d\r\n", rc);
-
-    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-    data.MQTTVersion = 3;
-    data.clientID.cstring = (char*) "mbed-sample";
-    data.username.cstring = (char*) "testuser";
-    data.password.cstring = (char*) "testpassword";
-    if ((rc = client.connect(data)) != 0)
-        printf("rc from MQTT connect is %d\r\n", rc);
-
     MQTT::Message message;    
-    
     oled.cursor( 2, 0 );
     oled.printf( "Topi: %s\n", topic );
     oled.cursor( 3, 0 );    
@@ -93,13 +77,24 @@ void publish( MQTTNetwork &mqttNetwork, MQTT::Client<MQTTNetwork, Countdown> &cl
     message.payload = (void*) buf;
     message.payloadlen = strlen(buf)+1;
     client.publish( topic, message);  
-    
-    // Verbindung beenden, ansonsten ist nach 4x Schluss
-    if ((rc = client.disconnect()) != 0)
-        printf("rc from disconnect was %d\r\n", rc);
+}
 
-    mqttNetwork.disconnect();
-    led1 = 0;
+/** Daten empfangen von MQTT Broker */
+void messageArrived( MQTT::MessageData& md )
+{
+    float value;
+    MQTT::Message &message = md.message;
+    printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\n", message.qos, message.retained, message.dup, message.id);
+    printf("Topic %.*s, ", md.topicName.lenstring.len, (char*) md.topicName.lenstring.data );
+    printf("Payload %.*s\n", message.payloadlen, (char*) message.payload);
+    
+    // Aktoren
+    if  ( strncmp( (char*) md.topicName.lenstring.data + md.topicName.lenstring.len - 6, "servo2", 6) == 0 )
+    {
+        sscanf( (char*) message.payload, "%f", &value );
+        servo2 = value;
+        printf( "Servo2 %f\n", value );
+    }               
 }
 
 /** Hauptprogramm */
@@ -109,6 +104,7 @@ int main()
     float temp, hum;
     int encoder;
     alert = 0;
+    servo2 = 0.5f;
     
     oled.clear();
     oled.printf( "MQTTPublish\r\n" );
@@ -136,16 +132,29 @@ int main()
     // TCP/IP und MQTT initialisieren (muss in main erfolgen)
     MQTTNetwork mqttNetwork( wifi );
     MQTT::Client<MQTTNetwork, Countdown> client(mqttNetwork);
+
+    printf("Connecting to %s:%d\r\n", hostname, port);
+    int rc = mqttNetwork.connect(hostname, port);
+    if (rc != 0)
+        printf("rc from TCP connect is %d\r\n", rc); 
+
+    // Zugangsdaten - der Mosquitto Broker ignoriert diese
+    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+    data.MQTTVersion = 3;
+    data.clientID.cstring = (char*) "mbed-sample";
+    data.username.cstring = (char*) "testuser";
+    data.password.cstring = (char*) "testpassword";
+    if ((rc = client.connect(data)) != 0)
+        printf("rc from MQTT connect is %d\r\n", rc);           
+
+    // MQTT Subscribe!
+    client.subscribe( topicActors, MQTT::QOS0, messageArrived );
+    printf("MQTT subscribe %s\n", topicActors );
     
     /* Init all sensors with default params */
     hum_temp.init(NULL);
     hum_temp.enable(); 
 
-#ifdef TARGET_K64F
-    // RFID Reader initialisieren
-    rfidReader.PCD_Init();  
-#endif
-    
     while   ( 1 ) 
     {
         // Temperator und Luftfeuchtigkeit
@@ -210,27 +219,15 @@ int main()
         encoder = wheel.getPulses();
         sprintf( buf, "%d", encoder );
         publish( mqttNetwork, client, topicENCODER );
-        
-        // RFID Reader
-        if ( rfidReader.PICC_IsNewCardPresent())
-            if ( rfidReader.PICC_ReadCardSerial()) 
-            {
-                // Print Card UID (2-stellig mit Vornullen, Hexadecimal)
-                printf("Card UID: ");
-                for ( int i = 0; i < rfidReader.uid.size; i++ )
-                    printf("%02X:", rfidReader.uid.uidByte[i]);
-                printf("\n");
-                
-                // Print Card type
-                int piccType = rfidReader.PICC_GetType(rfidReader.uid.sak);
-                printf("PICC Type: %s \n", rfidReader.PICC_GetTypeName(piccType) );
-                
-                sprintf( buf, "%02X:%02X:%02X:%02X:", rfidReader.uid.uidByte[0], rfidReader.uid.uidByte[1], rfidReader.uid.uidByte[2], rfidReader.uid.uidByte[3] );
-                publish( mqttNetwork, client, topicRFID );                
-                
-            }        
-#endif        
+#endif
 
-        thread_sleep_for    ( 500 );
+        client.yield    ( 1000 );                   // MQTT Client darf empfangen
+        thread_sleep_for( 500 );
     }
+
+    // Verbindung beenden
+    if ((rc = client.disconnect()) != 0)
+        printf("rc from disconnect was %d\r\n", rc);
+
+    mqttNetwork.disconnect();    
 }
