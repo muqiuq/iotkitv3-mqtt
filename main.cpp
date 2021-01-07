@@ -40,7 +40,7 @@ char* topicALERT = (char*) "iotkit/alert";
 char* topicBUTTON = (char*) "iotkit/button";
 char* topicENCODER = (char*) "iotkit/encoder";
 // Topic's subscribe
-char* topicActors = (char*) "actors/iotkit/get/#";
+char* topicActors = (char*) "iotkit/actors/#";
 // MQTT Brocker
 char* hostname = (char*) "cloud.tbz.ch";
 int port = 1883;
