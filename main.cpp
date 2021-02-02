@@ -141,9 +141,9 @@ int main()
     // Zugangsdaten - der Mosquitto Broker ignoriert diese
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
     data.MQTTVersion = 3;
-    data.clientID.cstring = (char*) "mbed-sample";
-    data.username.cstring = (char*) "testuser";
-    data.password.cstring = (char*) "testpassword";
+    data.clientID.cstring = (char*) wifi->get_mac_address(); // muss Eindeutig sein, ansonsten ist nur 1ne Connection moeglich
+    data.username.cstring = (char*) wifi->get_mac_address(); // User und Password ohne Funktion
+    data.password.cstring = (char*) "password";
     if ((rc = client.connect(data)) != 0)
         printf("rc from MQTT connect is %d\r\n", rc);           
 
