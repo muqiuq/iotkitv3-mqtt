@@ -2,11 +2,11 @@
     "config": {
         "wifi-ssid": {
             "help": "WiFi SSID",
-            "value": "\"LERNKUBE\""
+            "value": "\"SSID\""
         },
         "wifi-password": {
             "help": "WiFi Password",
-            "value": "\"l3rnk4b3\""
+            "value": "\"PASSWORD\""
         }
     },    
     "target_overrides": {

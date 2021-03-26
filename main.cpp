@@ -1,8 +1,6 @@
 /** MQTT Publish von Sensordaten */
 #include "mbed.h"
 #include "OLEDDisplay.h"
-#include "Motor.h"
-#include "Servo.h"
 
 #if MBED_CONF_IOTKIT_HTS221_SENSOR == true
 #include "HTS221Sensor.h"
@@ -31,7 +29,6 @@ static HTS221Sensor hum_temp(&devI2c);
 #if MBED_CONF_IOTKIT_BMP180_SENSOR == true
 static BMP180Wrapper hum_temp( &devI2c );
 #endif
-AnalogIn hallSensor( MBED_CONF_IOTKIT_HALL_SENSOR );
 DigitalIn button( MBED_CONF_IOTKIT_BUTTON1 );
 
 // Topic's publish
@@ -49,19 +46,17 @@ MQTT::Message message;
 // I/O Buffer
 char buf[100];
 
-// Klassifikation 
-char cls[3][10] = { "low", "middle", "high" };
-int type = 0;
-
 // UI
 OLEDDisplay oled( MBED_CONF_IOTKIT_OLED_RST, MBED_CONF_IOTKIT_OLED_SDA, MBED_CONF_IOTKIT_OLED_SCL );
-DigitalOut alert( MBED_CONF_IOTKIT_LED3 );
 
 // Aktore(n)
 PwmOut speaker( MBED_CONF_IOTKIT_BUZZER );
-// Servo2 (Pin mit PWM)
-Servo servo2 ( MBED_CONF_IOTKIT_SERVO2 );
-Motor m1( MBED_CONF_IOTKIT_MOTOR2_PWM, MBED_CONF_IOTKIT_MOTOR2_FWD, MBED_CONF_IOTKIT_MOTOR2_REV ); // PWM, Vorwaerts, Rueckwarts
+
+DigitalOut led1( MBED_CONF_IOTKIT_LED1 );
+DigitalOut led2( MBED_CONF_IOTKIT_LED2 );
+DigitalOut led3( MBED_CONF_IOTKIT_LED3 );
+DigitalOut led4( MBED_CONF_IOTKIT_LED4 );
+
 
 /** Hilfsfunktion zum Publizieren auf MQTT Broker */
 void publish( MQTTNetwork &mqttNetwork, MQTT::Client<MQTTNetwork, Countdown> &client, char* topic )
@@ -88,13 +83,25 @@ void messageArrived( MQTT::MessageData& md )
     printf("Topic %.*s, ", md.topicName.lenstring.len, (char*) md.topicName.lenstring.data );
     printf("Payload %.*s\n", message.payloadlen, (char*) message.payload);
     
-    // Aktoren
-    if  ( strncmp( (char*) md.topicName.lenstring.data + md.topicName.lenstring.len - 6, "servo2", 6) == 0 )
-    {
-        sscanf( (char*) message.payload, "%f", &value );
-        servo2 = value;
-        printf( "Servo2 %f\n", value );
-    }               
+    if  ( strncmp( (char*) md.topicName.lenstring.data + md.topicName.lenstring.len - 3, "led", 3) == 0  
+        && message.payloadlen >= 2) {
+
+        DigitalOut * ledN;
+        switch(((char*) message.payload)[0]) {
+            case '1': ledN = &led1; printf("LED1\n"); break;
+            case '2': ledN = &led2; printf("LED2\n"); break;
+            case '3': ledN = &led3; printf("LED3\n"); break;
+            case '4': ledN = &led4; printf("LED4\n"); break;
+            default: break;
+        }
+
+        if(((char*) message.payload)[1] == '1') {
+            *ledN = 1;
+        }else{
+            *ledN = 0;
+        }
+    }
+
 }
 
 /** Hauptprogramm */
@@ -103,8 +110,6 @@ int main()
     uint8_t id;
     float temp, hum;
     int encoder;
-    alert = 0;
-    servo2 = 0.5f;
     
     oled.clear();
     oled.printf( "MQTTPublish\r\n" );
@@ -154,6 +159,7 @@ int main()
     /* Init all sensors with default params */
     hum_temp.init(NULL);
     hum_temp.enable(); 
+    led1 = 0;led2 = 0;led3 = 0;led4 = 0;
 
     while   ( 1 ) 
     {
@@ -161,51 +167,10 @@ int main()
         hum_temp.read_id(&id);
         hum_temp.get_temperature(&temp);
         hum_temp.get_humidity(&hum);    
-        if  ( type == 0 )
-        {
-            temp -= 5.0f;
-            m1.speed( 0.0f );
-        }
-        else if  ( type == 2 )
-        {
-            temp += 5.0f;
-            m1.speed( 1.0f );
-        }
-        else
-        {
-            m1.speed( 0.75f );
-        }
-        sprintf( buf, "0x%X,%2.2f,%2.1f,%s", id, temp, hum, cls[type] ); 
-        type++;
-        if  ( type > 2 )
-            type = 0;       
+        sprintf( buf, "0x%X,%2.2f,%2.1f", id, temp, hum ); 
+
         publish( mqttNetwork, client, topicTEMP );
         
-        // alert Tuer offen 
-        printf( "Hall %4.4f, alert %d\n", hallSensor.read(), alert.read() );
-        if  ( hallSensor.read() > 0.6f )
-        {
-            // nur einmal Melden!, bis Reset
-            if  ( alert.read() == 0 )
-            {
-                sprintf( buf, "alert: hall" );
-                message.payload = (void*) buf;
-                message.payloadlen = strlen(buf)+1;
-                publish( mqttNetwork, client, topicALERT );
-                alert = 1;
-            }
-            speaker.period( 1.0 / 3969.0 );      // 3969 = Tonfrequenz in Hz
-            speaker = 0.5f;
-            thread_sleep_for( 500 );
-            speaker.period( 1.0 / 2800.0 );
-            thread_sleep_for( 500 );
-        }
-        else
-        {
-            alert = 0;
-            speaker = 0.0f;
-        }
-
         // Button (nur wenn gedrueckt)
         if  ( button == 0 )
         {
@@ -216,7 +181,8 @@ int main()
 #ifdef TARGET_K64F
 
         // Encoder
-        encoder = wheel.getPulses();
+        encoder = wheel.getRevolutions();
+        // wheel.getRevolutions();
         sprintf( buf, "%d", encoder );
         publish( mqttNetwork, client, topicENCODER );
 #endif
